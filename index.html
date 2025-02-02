@@ -3,11 +3,72 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>My GitHub Page</title>
-    <link rel="stylesheet" href="styles.css">
+    <title>Microchip USB Demos</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 20px;
+        }
+        h1 {
+            color: #333;
+        }
+        ul {
+            list-style: none;
+            padding: 0;
+        }
+        li {
+            background: #fff;
+            margin: 10px auto;
+            padding: 10px;
+            border-radius: 5px;
+            box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.2);
+            width: 80%;
+            text-align: left;
+        }
+        a {
+            text-decoration: none;
+            color: #007BFF;
+            font-weight: bold;
+        }
+    </style>
 </head>
 <body>
-    <h1>Welcome to My GitHub Page</h1>
-    <p>This is a simple GitHub Pages website.</p>
+    <h1>Microchip USB Device Demos</h1>
+    <ul id="demo-list">Loading...</ul>
+
+    <script>
+        async function fetchDemos() {
+            const repo = "Microchip-MPLAB-Harmony/usb_apps_device";
+            const url = `https://api.github.com/repos/${repo}/contents`;
+            const demoList = document.getElementById("demo-list");
+
+            try {
+                const response = await fetch(url);
+                const data = await response.json();
+
+                // Clear existing content
+                demoList.innerHTML = "";
+
+                // Filter and list directories (each demo)
+                data.forEach(item => {
+                    if (item.type === "dir") {
+                        const listItem = document.createElement("li");
+                        listItem.innerHTML = `<a href="https://github.com/${repo}/tree/master/${item.name}" target="_blank">${item.name}</a>`;
+                        demoList.appendChild(listItem);
+                    }
+                });
+
+            } catch (error) {
+                console.error("Error fetching data:", error);
+                demoList.innerHTML = "Failed to load demos.";
+            }
+        }
+
+        // Fetch and display demo list on page load
+        fetchDemos();
+    </script>
 </body>
 </html>
