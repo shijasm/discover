@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Microchip USB Demos</title>
+    <title>Microchip USB Demos (.X Projects)</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -36,29 +36,43 @@
     </style>
 </head>
 <body>
-    <h1>Microchip USB Device Demos</h1>
+    <h1>Microchip USB Demos (.X Projects)</h1>
     <ul id="demo-list">Loading...</ul>
 
     <script>
-        async function fetchDemos() {
-            const repo = "Microchip-MPLAB-Harmony/usb_apps_device";
-            const url = `https://api.github.com/repos/${repo}/contents`;
-            const demoList = document.getElementById("demo-list");
+        const repo = "Microchip-MPLAB-Harmony/usb_apps_device";
+        const baseUrl = `https://api.github.com/repos/${repo}/git/trees/master?recursive=1`;
+        const demoList = document.getElementById("demo-list");
 
+        async function fetchDemos() {
             try {
-                const response = await fetch(url);
+                const response = await fetch(baseUrl);
                 const data = await response.json();
 
                 // Clear existing content
                 demoList.innerHTML = "";
 
-                // Filter and list directories (each demo)
-                data.forEach(item => {
-                    if (item.type === "dir") {
-                        const listItem = document.createElement("li");
-                        listItem.innerHTML = `<a href="https://github.com/${repo}/tree/master/${item.name}" target="_blank">${item.name}</a>`;
-                        demoList.appendChild(listItem);
-                    }
+                // Check for valid response
+                if (!data.tree) {
+                    demoList.innerHTML = "Failed to load demos.";
+                    return;
+                }
+
+                // Filter directories or files ending with ".X"
+                const filteredItems = data.tree.filter(item => item.path.endsWith(".X"));
+
+                if (filteredItems.length === 0) {
+                    demoList.innerHTML = "<li>No .X projects found</li>";
+                    return;
+                }
+
+                // Display the results
+                filteredItems.forEach(item => {
+                    const listItem = document.createElement("li");
+                    const itemPath = item.path;
+                    const itemUrl = `https://github.com/${repo}/tree/master/${itemPath}`;
+                    listItem.innerHTML = `<a href="${itemUrl}" target="_blank">${itemPath}</a>`;
+                    demoList.appendChild(listItem);
                 });
 
             } catch (error) {
