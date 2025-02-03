@@ -90,7 +90,8 @@
                             
                             const filePaths = Array.from(xmlDoc.getElementsByTagName("file"))
                                 .map(file => file.getAttribute("path"));
-        
+                            console.log(xmlDoc.documentElement);
+
                             if (filePaths.length === 0) {
                                 alert("No files found in configurations.xml");
                                 return;
