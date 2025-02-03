@@ -51,34 +51,47 @@
 
                 // Clear existing content
                 demoList.innerHTML = "";
-
+        
                 // Check for valid response
                 if (!data.tree) {
                     demoList.innerHTML = "Failed to load demos.";
                     return;
                 }
-
+        
                 // Filter for configurations.xml files
                 const filteredItems = data.tree.filter(item => item.path.endsWith("configurations.xml"));
-
+        
                 if (filteredItems.length === 0) {
                     demoList.innerHTML = "<li>No configurations.xml files found</li>";
                     return;
                 }
-
+        
                 // Display the results
                 filteredItems.forEach(item => {
                     const listItem = document.createElement("li");
                     const itemPath = item.path;
                     const rawFileUrl = `https://raw.githubusercontent.com/${repo}/master/${itemPath.replace(/\\/g, '/')}`;
-
+        
                     // Create download link
                     const link = document.createElement("a");
                     link.href = rawFileUrl;
-                    link.download = "configurations.xml";
+                    link.target = "_blank";
                     link.textContent = itemPath;
-
+        
+                    // Create download button
+                    const downloadButton = document.createElement("button");
+                    downloadButton.textContent = "Download";
+                    downloadButton.onclick = () => {
+                        const a = document.createElement("a");
+                        a.href = rawFileUrl;
+                        a.download = "configurations.xml";
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                    };
+        
                     listItem.appendChild(link);
+                    listItem.appendChild(downloadButton);
                     demoList.appendChild(listItem);
                 });
             } catch (error) {
@@ -86,9 +99,10 @@
                 demoList.innerHTML = "Failed to load demos.";
             }
         }
-
+        
         // Fetch and display demo list on page load
         fetchDemos();
+
 
 
     </script>
