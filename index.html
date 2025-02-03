@@ -70,11 +70,17 @@
                 filteredItems.forEach(item => {
                     const listItem = document.createElement("li");
                     const itemPath = item.path;
-                    const itemUrl = `https://github.com/${repo}/tree/master/${itemPath}`;
-                    listItem.innerHTML = `<a href="${itemUrl}" target="_blank">${itemPath}</a>`;
+                    const rawFileUrl = `https://raw.githubusercontent.com/${repo}/master/${itemPath}`;
+
+                    // Create download link
+                    const link = document.createElement("a");
+                    link.href = rawFileUrl;
+                    link.download = itemPath.split('/').pop(); // Extract the file name for downloading
+                    link.textContent = itemPath;
+
+                    listItem.appendChild(link);
                     demoList.appendChild(listItem);
                 });
-
             } catch (error) {
                 console.error("Error fetching data:", error);
                 demoList.innerHTML = "Failed to load demos.";
@@ -83,6 +89,7 @@
 
         // Fetch and display demo list on page load
         fetchDemos();
+
     </script>
 </body>
 </html>
