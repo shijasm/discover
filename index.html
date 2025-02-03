@@ -43,12 +43,12 @@
         const repo = "Microchip-MPLAB-Harmony/usb_apps_device";
         const baseUrl = `https://api.github.com/repos/${repo}/git/trees/master?recursive=1`;
         const demoList = document.getElementById("demo-list");
-
+        
         async function fetchDemos() {
             try {
                 const response = await fetch(baseUrl);
                 const data = await response.json();
-
+        
                 // Clear existing content
                 demoList.innerHTML = "";
         
@@ -81,13 +81,20 @@
                     // Create download button
                     const downloadButton = document.createElement("button");
                     downloadButton.textContent = "Download";
-                    downloadButton.onclick = () => {
-                        const a = document.createElement("a");
-                        a.href = rawFileUrl;
-                        a.download = "configurations.xml";
-                        document.body.appendChild(a);
-                        a.click();
-                        document.body.removeChild(a);
+                    downloadButton.onclick = async () => {
+                        try {
+                            const response = await fetch(rawFileUrl);
+                            const blob = await response.blob();
+                            const a = document.createElement("a");
+                            a.href = URL.createObjectURL(blob);
+                            a.download = itemPath.split('/').pop(); // Extract filename
+                            document.body.appendChild(a);
+                            a.click();
+                            document.body.removeChild(a);
+                            URL.revokeObjectURL(a.href);
+                        } catch (error) {
+                            console.error("Download failed:", error);
+                        }
                     };
         
                     listItem.appendChild(link);
