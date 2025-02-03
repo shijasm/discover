@@ -78,16 +78,38 @@
                     link.target = "_blank";
                     link.textContent = itemPath;
         
-                    // Create download button
+                    // Create package and download button
                     const downloadButton = document.createElement("button");
-                    downloadButton.textContent = "Download";
+                    downloadButton.textContent = "Download Package";
                     downloadButton.onclick = async () => {
                         try {
                             const response = await fetch(rawFileUrl);
-                            const blob = await response.blob();
+                            const text = await response.text();
+                            const parser = new DOMParser();
+                            const xmlDoc = parser.parseFromString(text, "application/xml");
+                            
+                            const filePaths = Array.from(xmlDoc.getElementsByTagName("file"))
+                                .map(file => file.getAttribute("path"));
+        
+                            if (filePaths.length === 0) {
+                                alert("No files found in configurations.xml");
+                                return;
+                            }
+        
+                            const zip = new JSZip();
+                            await Promise.all(filePaths.map(async (filePath) => {
+                                const fileUrl = `https://raw.githubusercontent.com/${repo}/master/${filePath.replace(/\\/g, '/')}`;
+                                const fileResponse = await fetch(fileUrl);
+                                if (fileResponse.ok) {
+                                    const blob = await fileResponse.blob();
+                                    zip.file(filePath.split('/').pop(), blob);
+                                }
+                            }));
+        
+                            const zipBlob = await zip.generateAsync({ type: "blob" });
                             const a = document.createElement("a");
-                            a.href = URL.createObjectURL(blob);
-                            a.download = itemPath.split('/').pop(); // Extract filename
+                            a.href = URL.createObjectURL(zipBlob);
+                            a.download = "package.zip";
                             document.body.appendChild(a);
                             a.click();
                             document.body.removeChild(a);
@@ -107,10 +129,13 @@
             }
         }
         
+        // Load JSZip for packaging files
+        const script = document.createElement("script");
+        script.src = "https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js";
+        document.head.appendChild(script);
+        
         // Fetch and display demo list on page load
         fetchDemos();
-
-
 
     </script>
 </body>
