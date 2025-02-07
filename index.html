@@ -70,16 +70,31 @@
                     return;
                 }
         
-                // Display file list in a popup
-                const fileListPopup = document.createElement("div");
-                fileListPopup.style.position = "fixed";
-                fileListPopup.style.top = "50%";
-                fileListPopup.style.left = "50%";
-                fileListPopup.style.transform = "translate(-50%, -50%)";
-                fileListPopup.style.backgroundColor = "white";
-                fileListPopup.style.border = "1px solid gray";
-                fileListPopup.style.padding = "20px";
-                fileListPopup.style.zIndex = "1000"; // Ensure it's on top
+                // 1. Create the ZIP *before* showing the popup
+                const zip = new JSZip();
+                const promises = filePaths.map(async filePath => {
+                    const fileUrl = `https://raw.githubusercontent.com/${repo}/master/${filePath.replace(/\\/g, '/')}`;
+                    try {
+                        const fileResponse = await fetch(fileUrl);
+                        if (!fileResponse.ok) {
+                            console.error(`Failed to fetch ${filePath}: ${fileResponse.status}`);
+                            return;
+                        }
+                        const blob = await fileResponse.blob();
+                        zip.file(filePath.split('/').pop(), blob);
+                    } catch (error) {
+                        console.error(`Error fetching ${filePath}:`, error);
+                    }
+                });
+        
+                await Promise.all(promises);  // Wait for all files to be added to the zip
+        
+                const zipBlob = await zip.generateAsync({ type: "blob" }); // Generate the blob
+                const zipUrl = URL.createObjectURL(zipBlob); // Create a URL for the blob
+        
+        
+                // 2. Now show the popup
+                const fileListPopup = document.createElement("div"); // ... (styling remains the same)
         
                 const fileList = document.createElement("ul");
                 filePaths.forEach(filePath => {
@@ -91,36 +106,15 @@
         
                 const confirmButton = document.createElement("button");
                 confirmButton.textContent = "Download";
-                confirmButton.addEventListener("click", async () => {
-                    document.body.removeChild(fileListPopup); // Close popup
-        
-                    const zip = new JSZip();
-                    const promises = filePaths.map(async filePath => { // ... (rest of the zip creation code)
-                        const fileUrl = `https://raw.githubusercontent.com/${repo}/master/${filePath.replace(/\\/g, '/')}`;
-                        try {
-                            const fileResponse = await fetch(fileUrl);
-                            if (!fileResponse.ok) {
-                                console.error(`Failed to fetch ${filePath}: ${fileResponse.status}`);
-                                return;
-                            }
-                            const blob = await fileResponse.blob();
-                            zip.file(filePath.split('/').pop(), blob);
-                        } catch (error) {
-                            console.error(`Error fetching ${filePath}:`, error);
-                        }
-                    });
-        
-                    await Promise.all(promises);
-        
-                    const zipBlob = await zip.generateAsync({ type: "blob" });
+                confirmButton.addEventListener("click", () => {
+                    document.body.removeChild(fileListPopup);
                     const a = document.createElement("a");
-                    a.href = URL.createObjectURL(zipBlob);
+                    a.href = zipUrl; // Use the pre-generated URL
                     a.download = "package.zip";
                     document.body.appendChild(a);
                     a.click();
                     document.body.removeChild(a);
-                    URL.revokeObjectURL(a.href);
-        
+                    URL.revokeObjectURL(zipUrl); // Revoke the URL after download
                 });
                 fileListPopup.appendChild(confirmButton);
         
@@ -128,9 +122,9 @@
                 cancelButton.textContent = "Cancel";
                 cancelButton.addEventListener("click", () => {
                     document.body.removeChild(fileListPopup);
+                    URL.revokeObjectURL(zipUrl); // Revoke if cancelled as well to prevent memory leaks.
                 });
                 fileListPopup.appendChild(cancelButton);
-        
         
                 document.body.appendChild(fileListPopup);
         
@@ -139,7 +133,6 @@
                 alert("Download failed. Check the console for details.");
             }
         }
-        
         
         // ... (JSZip loading remains the same)
 
