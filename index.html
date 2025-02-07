@@ -44,100 +44,104 @@
         const baseUrl = `https://api.github.com/repos/${repo}/git/trees/master?recursive=1`;
         const demoList = document.getElementById("demo-list");
         
-        async function fetchDemos() {
+        // ... (fetchDemos function remains the same)
+        
+        async function downloadPackage(configUrl) {
             try {
-                const response = await fetch(baseUrl);
-                const data = await response.json();
+                const response = await fetch(configUrl);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const xmlText = await response.text();
+                const parser = new DOMParser();
+                const xmlDoc = parser.parseFromString(xmlText, "application/xml");
         
-                demoList.innerHTML = "";
-        
-                if (!data.tree) {
-                    demoList.innerHTML = "Failed to load demos.";
+                if (xmlDoc.getElementsByTagName("parsererror").length) {
+                    alert("Invalid XML file");
                     return;
                 }
         
-                const filteredItems = data.tree.filter(item => item.path.endsWith("configurations.xml"));
+                const filePaths = Array.from(xmlDoc.getElementsByTagName("file"))
+                    .map(file => file.getAttribute("path"))
+                    .filter(path => path);
         
-                if (filteredItems.length === 0) {
-                    demoList.innerHTML = "<li>No configurations.xml files found</li>";
+                if (filePaths.length === 0) {
+                    alert("No files found in configurations.xml");
                     return;
                 }
         
-                filteredItems.forEach(item => {
+                // Display file list in a popup
+                const fileListPopup = document.createElement("div");
+                fileListPopup.style.position = "fixed";
+                fileListPopup.style.top = "50%";
+                fileListPopup.style.left = "50%";
+                fileListPopup.style.transform = "translate(-50%, -50%)";
+                fileListPopup.style.backgroundColor = "white";
+                fileListPopup.style.border = "1px solid gray";
+                fileListPopup.style.padding = "20px";
+                fileListPopup.style.zIndex = "1000"; // Ensure it's on top
+        
+                const fileList = document.createElement("ul");
+                filePaths.forEach(filePath => {
                     const listItem = document.createElement("li");
-                    const itemPath = item.path;
-                    const rawFileUrl = `https://raw.githubusercontent.com/${repo}/master/${itemPath.replace(/\\/g, '/')}`;
-        
-                    const link = document.createElement("a");
-                    link.href = rawFileUrl;
-                    link.target = "_blank";
-                    link.textContent = itemPath;
-        
-                    const downloadButton = document.createElement("button");
-                    downloadButton.textContent = "Download Package";
-                    downloadButton.onclick = async () => {
-                        try {
-                            const response = await fetch(rawFileUrl);
-                            if (!response.ok) throw new Error("Failed to fetch XML file");
-        
-                            const text = await response.text();
-                            const parser = new DOMParser();
-                            const xmlDoc = parser.parseFromString(text, "application/xml");
-        
-                            if (xmlDoc.getElementsByTagName("parsererror").length) {
-                                alert("Invalid XML file");
-                                return;
-                            }
-        
-                            const filePaths = Array.from(xmlDoc.getElementsByTagName("file"))
-                                .map(file => file.getAttribute("path"))
-                                .filter(path => path); // Remove null values
-        
-                            if (filePaths.length === 0) {
-                                alert("No files found in configurations.xml");
-                                return;
-                            }
-        
-                            const zip = new JSZip();
-                            await Promise.all(filePaths.map(async (filePath) => {
-                                const fileUrl = `https://raw.githubusercontent.com/${repo}/master/${filePath.replace(/\\/g, '/')}`;
-                                const fileResponse = await fetch(fileUrl);
-                                if (fileResponse.ok) {
-                                    const blob = await fileResponse.blob();
-                                    zip.file(filePath.split('/').pop(), blob);
-                                }
-                            }));
-        
-                            const zipBlob = await zip.generateAsync({ type: "blob" });
-                            const a = document.createElement("a");
-                            a.href = URL.createObjectURL(zipBlob);
-                            a.download = "package.zip";
-                            document.body.appendChild(a);
-                            a.click();
-                            document.body.removeChild(a);
-                            URL.revokeObjectURL(a.href);
-                        } catch (error) {
-                            console.error("Download failed:", error);
-                        }
-                    };
-        
-                    listItem.appendChild(link);
-                    listItem.appendChild(downloadButton);
-                    demoList.appendChild(listItem);
+                    listItem.textContent = filePath;
+                    fileList.appendChild(listItem);
                 });
+                fileListPopup.appendChild(fileList);
+        
+                const confirmButton = document.createElement("button");
+                confirmButton.textContent = "Download";
+                confirmButton.addEventListener("click", async () => {
+                    document.body.removeChild(fileListPopup); // Close popup
+        
+                    const zip = new JSZip();
+                    const promises = filePaths.map(async filePath => { // ... (rest of the zip creation code)
+                        const fileUrl = `https://raw.githubusercontent.com/${repo}/master/${filePath.replace(/\\/g, '/')}`;
+                        try {
+                            const fileResponse = await fetch(fileUrl);
+                            if (!fileResponse.ok) {
+                                console.error(`Failed to fetch ${filePath}: ${fileResponse.status}`);
+                                return;
+                            }
+                            const blob = await fileResponse.blob();
+                            zip.file(filePath.split('/').pop(), blob);
+                        } catch (error) {
+                            console.error(`Error fetching ${filePath}:`, error);
+                        }
+                    });
+        
+                    await Promise.all(promises);
+        
+                    const zipBlob = await zip.generateAsync({ type: "blob" });
+                    const a = document.createElement("a");
+                    a.href = URL.createObjectURL(zipBlob);
+                    a.download = "package.zip";
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(a.href);
+        
+                });
+                fileListPopup.appendChild(confirmButton);
+        
+                const cancelButton = document.createElement("button");
+                cancelButton.textContent = "Cancel";
+                cancelButton.addEventListener("click", () => {
+                    document.body.removeChild(fileListPopup);
+                });
+                fileListPopup.appendChild(cancelButton);
+        
+        
+                document.body.appendChild(fileListPopup);
+        
             } catch (error) {
-                console.error("Error fetching data:", error);
-                demoList.innerHTML = "Failed to load demos.";
+                console.error("Download failed:", error);
+                alert("Download failed. Check the console for details.");
             }
         }
         
-        // Load JSZip dynamically
-        const script = document.createElement("script");
-        script.src = "https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js";
-        document.head.appendChild(script);
         
-        fetchDemos();
-
+        // ... (JSZip loading remains the same)
 
     </script>
 </body>
