@@ -97,12 +97,17 @@ async function fetchDemos() {
                     const filePaths = Array.from(xmlDoc.getElementsByTagName("itemPath"))
                         .map(file => file.textContent.trim()) // Extracts the actual file path
                         .filter(path => path); // Removes empty/null values
-
+                    
 
                     if (filePaths.length === 0) {
                         alert("No files found in configurations.xml");
                         return;
                     }
+                    
+                    // Construct correct GitHub file URLs with the demo name
+                    const adjustedFilePaths = filePaths.map(path => 
+                        `https://raw.githubusercontent.com/${repo}/refs/heads/master/${demoName}/${path.replace(/\\/g, '/')}`
+                    );
 
                     const zip = new JSZip();
                     await Promise.all(filePaths.map(async (filePath) => {
