@@ -44,97 +44,100 @@
         const baseUrl = `https://api.github.com/repos/${repo}/git/trees/master?recursive=1`;
         const demoList = document.getElementById("demo-list");
         
-        // ... (fetchDemos function remains the same)
-        
-        async function downloadPackage(configUrl) {
+        async function fetchDemos() {
             try {
-                const response = await fetch(configUrl);
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                const xmlText = await response.text();
-                const parser = new DOMParser();
-                const xmlDoc = parser.parseFromString(xmlText, "application/xml");
+                const response = await fetch(baseUrl);
+                const data = await response.json();
         
-                if (xmlDoc.getElementsByTagName("parsererror").length) {
-                    alert("Invalid XML file");
+                demoList.innerHTML = "";
+        
+                if (!data.tree) {
+                    demoList.innerHTML = "Failed to load demos.";
                     return;
                 }
         
-                const filePaths = Array.from(xmlDoc.getElementsByTagName("file"))
-                    .map(file => file.getAttribute("path"))
-                    .filter(path => path);
+                const filteredItems = data.tree.filter(item => item.path.endsWith("configurations.xml"));
         
-                if (filePaths.length === 0) {
-                    alert("No files found in configurations.xml");
+                if (filteredItems.length === 0) {
+                    demoList.innerHTML = "<li>No configurations.xml files found</li>";
                     return;
                 }
         
-                // 1. Create the ZIP *before* showing the popup
-                const zip = new JSZip();
-                const promises = filePaths.map(async filePath => {
-                    const fileUrl = `https://raw.githubusercontent.com/${repo}/master/${filePath.replace(/\\/g, '/')}`;
-                    try {
-                        const fileResponse = await fetch(fileUrl);
-                        if (!fileResponse.ok) {
-                            console.error(`Failed to fetch ${filePath}: ${fileResponse.status}`);
-                            return;
-                        }
-                        const blob = await fileResponse.blob();
-                        zip.file(filePath.split('/').pop(), blob);
-                    } catch (error) {
-                        console.error(`Error fetching ${filePath}:`, error);
-                    }
-                });
-        
-                await Promise.all(promises);  // Wait for all files to be added to the zip
-        
-                const zipBlob = await zip.generateAsync({ type: "blob" }); // Generate the blob
-                const zipUrl = URL.createObjectURL(zipBlob); // Create a URL for the blob
-        
-        
-                // 2. Now show the popup
-                const fileListPopup = document.createElement("div"); // ... (styling remains the same)
-        
-                const fileList = document.createElement("ul");
-                filePaths.forEach(filePath => {
+                filteredItems.forEach(item => {
                     const listItem = document.createElement("li");
-                    listItem.textContent = filePath;
-                    fileList.appendChild(listItem);
+                    const itemPath = item.path;
+                    const rawFileUrl = `https://raw.githubusercontent.com/${repo}/master/${itemPath.replace(/\\/g, '/')}`;
+        
+                    const link = document.createElement("a");
+                    link.href = rawFileUrl;
+                    link.target = "_blank";
+                    link.textContent = itemPath;
+        
+                    const downloadButton = document.createElement("button");
+                    downloadButton.textContent = "Download Package";
+                    downloadButton.onclick = async () => {
+                        try {
+                            const response = await fetch(rawFileUrl);
+                            if (!response.ok) throw new Error("Failed to fetch XML file");
+        
+                            const text = await response.text();
+                            const parser = new DOMParser();
+                            const xmlDoc = parser.parseFromString(text, "application/xml");
+        
+                            if (xmlDoc.getElementsByTagName("parsererror").length) {
+                                alert("Invalid XML file");
+                                return;
+                            }
+        
+                            const filePaths = Array.from(xmlDoc.getElementsByTagName("file"))
+                                .map(file => file.getAttribute("path"))
+                                .filter(path => path); // Remove null values
+        
+                            if (filePaths.length === 0) {
+                                alert("No files found in configurations.xml");
+                                return;
+                            }
+        
+                            const zip = new JSZip();
+                            await Promise.all(filePaths.map(async (filePath) => {
+                                const fileUrl = `https://raw.githubusercontent.com/${repo}/master/${filePath.replace(/\\/g, '/')}`;
+                                const fileResponse = await fetch(fileUrl);
+                                if (fileResponse.ok) {
+                                    const blob = await fileResponse.blob();
+                                    zip.file(filePath.split('/').pop(), blob);
+                                }
+                            }));
+        
+                            const zipBlob = await zip.generateAsync({ type: "blob" });
+                            const a = document.createElement("a");
+                            a.href = URL.createObjectURL(zipBlob);
+                            a.download = "package.zip";
+                            document.body.appendChild(a);
+                            a.click();
+                            document.body.removeChild(a);
+                            URL.revokeObjectURL(a.href);
+                        } catch (error) {
+                            console.error("Download failed:", error);
+                        }
+                    };
+        
+                    listItem.appendChild(link);
+                    listItem.appendChild(downloadButton);
+                    demoList.appendChild(listItem);
                 });
-                fileListPopup.appendChild(fileList);
-        
-                const confirmButton = document.createElement("button");
-                confirmButton.textContent = "Download";
-                confirmButton.addEventListener("click", () => {
-                    document.body.removeChild(fileListPopup);
-                    const a = document.createElement("a");
-                    a.href = zipUrl; // Use the pre-generated URL
-                    a.download = "package.zip";
-                    document.body.appendChild(a);
-                    a.click();
-                    document.body.removeChild(a);
-                    URL.revokeObjectURL(zipUrl); // Revoke the URL after download
-                });
-                fileListPopup.appendChild(confirmButton);
-        
-                const cancelButton = document.createElement("button");
-                cancelButton.textContent = "Cancel";
-                cancelButton.addEventListener("click", () => {
-                    document.body.removeChild(fileListPopup);
-                    URL.revokeObjectURL(zipUrl); // Revoke if cancelled as well to prevent memory leaks.
-                });
-                fileListPopup.appendChild(cancelButton);
-        
-                document.body.appendChild(fileListPopup);
-        
             } catch (error) {
-                console.error("Download failed:", error);
-                alert("Download failed. Check the console for details.");
+                console.error("Error fetching data:", error);
+                demoList.innerHTML = "Failed to load demos.";
             }
         }
         
-        // ... (JSZip loading remains the same)
+        // Load JSZip dynamically
+        const script = document.createElement("script");
+        script.src = "https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js";
+        document.head.appendChild(script);
+        
+        fetchDemos();
+
 
     </script>
 </body>
