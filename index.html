@@ -93,6 +93,9 @@ async function fetchDemos() {
                         return;
                     }
 
+                    // Extract demo name from the XML path (e.g., "apps/cdc_com_port_dual")
+                    const demoName = xmlPath.replace("/configurations.xml", "");
+                    
                     // Extract relative file paths from XML and adjust base GitHub path
                     const filePaths = Array.from(xmlDoc.getElementsByTagName("itemPath"))
                         .map(file => file.textContent.trim()) // Extracts the actual file path
