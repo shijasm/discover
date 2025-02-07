@@ -94,9 +94,10 @@ async function fetchDemos() {
                     }
 
                     // Extract relative file paths from XML and adjust base GitHub path
-                    const filePaths = Array.from(xmlDoc.getElementsByTagName("file"))
-                        .map(file => file.getAttribute("path"))
-                        .filter(path => path); // Remove null values
+                    const filePaths = Array.from(xmlDoc.getElementsByTagName("itemPath"))
+                        .map(file => file.textContent.trim()) // Extracts the actual file path
+                        .filter(path => path); // Removes empty/null values
+
 
                     if (filePaths.length === 0) {
                         alert("No files found in configurations.xml");
