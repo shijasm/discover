@@ -106,7 +106,7 @@ async function fetchDemos() {
 
                     const zip = new JSZip();
                     await Promise.all(filePaths.map(async (filePath) => {
-                        const fullFilePath = `../src/config/pic32ck_gc01_curiosity_ultra/${filePath}`; // Concatenate relative path
+                        const fullFilePath = `${filePath}`; // Concatenate relative path
                         const fileUrl = `https://raw.githubusercontent.com/${repo}/refs/heads/master/${fullFilePath.replace(/^..\//, "").replace(/\\/g, '/')}`;
                         const fileResponse = await fetch(fileUrl);
                         if (fileResponse.ok) {
